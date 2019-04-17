@@ -1,0 +1,40 @@
+
+stages:
+  - build
+
+before_script:
+  - |
+    test -z "${USE_PPA}" || {
+      apt-get update
+      apt-get install -y software-properties-common gnupg
+      add-apt-repository -y ppa:bladerf/bladerf
+    }
+  - apt-get update
+  - apt-get install -y libbladerf${BLADERF_VSN:-1} libbladerf-dev librtlsdr-dev dh-systemd pkg-config libncurses5-dev gnupg
+
+debian:stretch:bladerf1-dist:
+  image: debian:stretch
+  stage: build
+  script:
+    # NOTE: do not sign anything since we have no signing key
+    # exposed to the CI env
+    - dpkg-buildpackage -b -us -uc
+    # The packages are created in the '..' and it cannot be changed :(
+    - mkdir artifacts
+    - mv ../*.deb ../*.changes artifacts/
+  artifacts:
+    when: always
+    untracked: true
+
+ubuntu:xenial:bladerf1-ppa:
+  extends: debian:stretch:bladerf1-dist
+  image: ubuntu:xenial
+  variables:
+    USE_PPA: "true"
+    BLADERF_VSN: "1"
+
+ubuntu:xenial:bladerf2-ppa:
+  extends: ubuntu:xenial:bladerf1-ppa
+  variables:
+    BLADERF_VSN: "2"
+
